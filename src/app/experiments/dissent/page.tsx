@@ -27,10 +27,10 @@ interface Edge {
 
 const N_NODES = 85;
 const N_MINORITY = 6;
-const REPULSION = 1400; // Coulomb constant
-const ATTRACTION = 0.015; // Spring constant
-const DAMPING = 0.65;
-const CENTER_FORCE = 0.035;
+const REPULSION = 800; // Calmer Coulomb constant
+const ATTRACTION = 0.008; // Weaker Spring constant
+const DAMPING = 0.85; // Higher damping for slower movement
+const CENTER_FORCE = 0.012; // Calmer centering
 
 export default function DissentExperiment() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
