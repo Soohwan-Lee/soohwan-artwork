@@ -1,30 +1,55 @@
 .main {
   min-height: 100vh;
-  padding: 80px 40px;
-  max-width: 1400px;
+  padding: 100px 60px;
+  max-width: 1200px;
   margin: 0 auto;
+  animation: fadeIn 1.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .header {
-  margin-bottom: 80px;
+  margin-bottom: 100px;
+  max-width: 800px;
+}
+
+.tagline {
+  font-family: monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--subtext);
+  margin-bottom: 24px;
 }
 
 .title {
-  font-size: 3.5rem;
-  font-weight: 500;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  text-transform: uppercase;
+  font-size: 4rem;
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  margin-bottom: 40px;
+  color: #fff;
 }
 
-.subtitle {
-  font-size: 0.875rem;
-  color: var(--subtext);
-  margin-top: 24px;
-  max-width: 480px;
-  line-height: 1.6;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.bio {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  font-size: 1.1rem;
+  color: #a3a3a3;
+  line-height: 1.7;
+  font-weight: 300;
+}
+
+.mission {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #222;
+  font-style: italic;
+  color: #777;
 }
 
 .grid {
@@ -38,18 +63,18 @@
     grid-template-columns: repeat(2, 1fr);
   }
   .title {
-    font-size: 2.5rem;
+    font-size: 3rem;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  .main {
+    padding: 60px 24px;
+  }
   .grid {
     grid-template-columns: 1fr;
   }
-  .main {
-    padding: 40px 20px;
-  }
   .title {
-    font-size: 2rem;
+    font-size: 2.5rem;
   }
 }

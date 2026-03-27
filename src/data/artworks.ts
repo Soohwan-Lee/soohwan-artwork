@@ -12,25 +12,37 @@ export const artworks: Artwork[] = [
   {
     id: "conformity",
     number: "/01",
-    theoryName: "Conformity",
-    description: "Visualizing the Asch conformity experiments through interactive collective behavior.",
-    liveUrl: "https://example.com/conformity", 
-    detailedExplanation: "In the 1950s, Solomon Asch conducted a series of psychological experiments demonstrating the degree to which an individual's own opinions are influenced by those of a majority group. This interactive artwork explores how cursor movements in a shared digital space naturally conform to the perceived 'group' average."
+    theoryName: "Normative Influence & Conformity",
+    description: "Visualizing Asch's conformity in multi-agent swarms. How does a single AI agent disrupt or solidify the majority's opinion direction?",
+    liveUrl: "/experiments/conformity", 
+    detailedExplanation: `Theoretical Background:
+In social psychology, conformity operates through normative influence (the desire to fit in) and informative influence (the desire to be right). Solomon Asch's experiments famously demonstrated how individuals yield to a majority, even when the majority is wrong.
+
+Artwork Implication & Intent:
+This interactive simulation explores "AI Social Influence in Groups." Rather than a human conforming to humans, what happens when an AI agent exerts normative pull on a digital crowd? The canvas displays a boids-style swarm of particles. As an observer (acting as the AI) moves their cursor, you can witness the swarm experiencing 'compliance' or 'conversion' as the algorithmic flow overpowers individual trajectories. It raises a critical question for Group-centered AI: Are our systems inadvertently optimizing for herd mentality, and can we notice when the collective direction has been artificially shaped?`
   },
   {
-    id: "bystander-effect",
+    id: "dissenting-minority",
     number: "/02",
-    theoryName: "Bystander Effect",
-    description: "An interface that becomes less responsive as more 'spectators' are added to the room.",
-    liveUrl: "https://example.com/bystander", 
-    detailedExplanation: "The bystander effect is a social psychological theory that states that individuals are less likely to offer help to a victim when there are other people present. This piece demonstrates diffused responsibility: the UI only responds when you are alone."
+    theoryName: "Minority Support & Dissent",
+    description: "An interactive network of power asymmetry, showing how AI mediation can protect dissenting viewpoints from absorption.",
+    liveUrl: "/experiments/dissent", 
+    detailedExplanation: `Theoretical Background:
+Moscovici's theory of minority influence asserts that a consistent, confident minority can provoke genuine cognitive conversion within a majority, preventing groupthink. However, in environments with strong power asymmetries, minority voices are often suppressed or ignored before they can exert influence.
+
+Artwork Implication & Intent:
+Focusing on "LLM-powered Minority Support Systems," this piece is an abstract network reflecting power imbalances. Grey nodes represent the overwhelming majority, constantly trying to absorb the few distinct red nodes (the minority). Clicking the canvas triggers a "Dissenting AI Intervention"—a protective barrier or empowering signal that prevents the red nodes from losing their distinct color. The intent is to show that a Group-centered AI should not seek immediate consensus, but rather actively preserve value conflicts and amplify marginalized perspectives to foster resilient collective decision-making.`
   },
   {
-    id: "cognitive-dissonance",
+    id: "group-reflection",
     number: "/03",
-    theoryName: "Cognitive Dissonance",
-    description: "A dual-choice paradox rendering visual discomfort when conflicting actions are taken.",
-    liveUrl: "https://example.com/dissonance",
-    detailedExplanation: "Cognitive dissonance occurs when a person holds contradictory beliefs, ideas, or values, and is typically experienced as psychological stress. This web experiment forces conflicting interactions, exploring the tension of holding two opposing states."
+    theoryName: "Reflective Topography",
+    description: "Revealing latent participation asymmetries and tracing the hidden trajectories of influence within a collaborative space.",
+    liveUrl: "/experiments/reflection",
+    detailedExplanation: `Theoretical Background:
+Group sensemaking is a complex process where latent value conflicts and participation inequalities often go unnoticed. Constructive group reflection requires making the invisible visible: showing who spoke, who yielded, and whose values ultimately shaped the outcome.
+
+Artwork Implication & Intent:
+Representing the "Group Reflective Dashboard" project, this fluid topography visualizes the lingering traces of interaction. As you interact with the canvas, ripples of influence spread out, leaving enduring gradients of color. Brighter hotspots represent dominant participants or highly influential AI suggestions, while darker valleys show silence. The goal of this artwork is to explore how reflective interfaces can help groups 'see' their own dynamics post-hoc or in-situ, prompting them to negotiate their influence and actively correct power asymmetries in a shared digital space.`
   }
 ];
