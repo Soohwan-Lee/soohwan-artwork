@@ -44,5 +44,17 @@ Group sensemaking is a complex process where latent value conflicts and particip
 
 Artwork Implication & Intent:
 Representing the "Group Reflective Dashboard" project, this fluid topography visualizes the lingering traces of interaction. As you interact with the canvas, ripples of influence spread out, leaving enduring gradients of color. Brighter hotspots represent dominant participants or highly influential AI suggestions, while darker valleys show silence. The goal of this artwork is to explore how reflective interfaces can help groups 'see' their own dynamics post-hoc or in-situ, prompting them to negotiate their influence and actively correct power asymmetries in a shared digital space.`
+  },
+  {
+    id: "social-field",
+    number: "/04",
+    theoryName: "Kurt Lewin's Social Field Theory",
+    description: "Visualizing social influence as a gravitational field. How does an AI 'mass' warp the surrounding field of human forces?",
+    liveUrl: "/experiments/social-field",
+    detailedExplanation: `Theoretical Background:
+Kurt Lewin's Field Theory posits that human behavior is a function of the person and their environment ($B = f(P, E)$), collectively called the 'Life Space' or 'Social Field.' This field consists of coexisting forces that are in a state of dynamic tension.
+
+Artwork Implication & Intent:
+In this simulation, the group is represented as a persistent 3D-like grid or 'force field.' Each individual exists within this field of social forces. When the user interacts (representing an AI intervention), a concentrated 'AI mass' is dropped into the field, warping the social fabric around it. This gravity-well visualization demonstrates how AI systems aren't just tools, but 'heavy' participants that fundamentally alter the landscape of group dynamics, created 'force vectors' that pull or push the collective toward new equilibria.`
   }
 ];
