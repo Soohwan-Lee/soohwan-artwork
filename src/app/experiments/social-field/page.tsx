@@ -10,10 +10,10 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 const PEOPLE = ["🧑", "👩", "👨", "🧔", "👩‍🦱", "👨‍🦳", "🧕", "👱", "🧑‍🦲", "👴", "👵", "🧑‍🦰"];
 const SPACING = 90;
-const SPRING_K = 0.012;
-const ANCHOR_K = 0.001;
-const DAMPING = 0.93;
-const GRAVITY = 9000;
+const SPRING_K = 0.006;
+const ANCHOR_K = 0.0008;
+const DAMPING = 0.94;
+const GRAVITY = 3500;
 const EMOJI_SIZE = 16;
 
 interface HumanNode {

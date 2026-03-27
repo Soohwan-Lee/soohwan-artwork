@@ -1,34 +1,33 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-// Conformity Swarm v3: Vibrant & Dynamic Influence
-// The swarm represents a "Networked Group." When the AI agent (cursor)
-// enters the field, particles shift color (Cyan -> Magenta) as they
-// experience high-pressure normative influence.
-// Added: Glow effects, motion trails, and vibrant color mapping.
+// Conformity v4: "The Asch Line Test" — Opinion Cascade
+//
+// Visualizes Solomon Asch's conformity experiment (1951).
+// 50 "participants" each hold an opinion (direction they face).
+// The Majority opinion slowly pulls everyone into alignment — even when wrong.
+// 
+// The user's cursor is the "AI Dissenter": hover near agents to give them
+// the confidence to maintain their independent stance.
+// Watch the cascade of conformity ripple through the crowd.
 
-interface Particle {
-  x: number;
-  y: number;
-  angle: number;
-  speed: number;
-  color: string;
-  influence: number; 
+interface Agent {
+  x: number; y: number;
+  angle: number;           // True private belief direction
+  displayAngle: number;    // What they publicly show (pulled by conformity)
+  conformity: number;      // 0 = fully independent, 1 = fully conforming
+  confidence: number;      // boosted by AI proximity
+  id: number;
 }
 
-const NUM_PARTICLES = 160;
-const PERCEPTION_R = 100;
-const INFLUENCE_R  = 220;
-const ALIGNMENT_W  = 0.05;
-const COHESION_W   = 0.0008;
-const SEPARATION_R = 30;
-const SEPARATION_W = 0.08;
-const CURSOR_W     = 0.12;
-const MAX_SPEED    = 2.8;
+const N = 48;
+const MAJORITY_ANGLE = Math.PI / 6; // The "wrong" majority opinion direction
+const TRUE_ANGLE = -Math.PI / 3;    // The correct, minority view
 
 export default function ConformityExperiment() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [conformityPct, setConformityPct] = useState(0);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -36,112 +35,158 @@ export default function ConformityExperiment() {
     let W = window.innerWidth, H = window.innerHeight;
     canvas.width = W; canvas.height = H;
 
-    let mx = W / 2, my = H / 2, mouseActive = false;
+    let mx = -999, my = -999;
 
-    const particles: Particle[] = Array.from({ length: NUM_PARTICLES }, () => ({
-      x: Math.random() * W,
-      y: Math.random() * H,
-      angle: Math.random() * Math.PI * 2,
-      speed: 1.2 + Math.random() * 1.5,
-      color: "rgb(255,255,255)",
-      influence: 0,
-    }));
+    // Arrange agents in a loose organic scatter
+    const agents: Agent[] = Array.from({ length: N }, (_, i) => {
+      const col = i % 8, row = Math.floor(i / 8);
+      const spacing = Math.min(W, H) * 0.085;
+      const startX = W / 2 - spacing * 3.5 + col * spacing;
+      const startY = H / 2 - spacing * 2.5 + row * spacing;
+      return {
+        id: i,
+        x: startX + (Math.random() - 0.5) * 30,
+        y: startY + (Math.random() - 0.5) * 30,
+        angle: i < 6 ? TRUE_ANGLE : MAJORITY_ANGLE + (Math.random() - 0.5) * 0.3,
+        displayAngle: i < 6 ? TRUE_ANGLE : MAJORITY_ANGLE,
+        conformity: i < 6 ? 0 : 0.7 + Math.random() * 0.3,
+        confidence: i < 6 ? 0.8 : 0.2,
+      };
+    });
 
-    const onMove = (e: MouseEvent) => { mx = e.clientX; my = e.clientY; mouseActive = true; };
-    const onLeave = () => { mouseActive = false; };
+    const onMove = (e: MouseEvent) => { mx = e.clientX; my = e.clientY; };
+    const onLeave = () => { mx = -999; my = -999; };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseleave", onLeave);
 
     let raf: number;
+    let time = 0;
 
     const tick = () => {
-      // Create a persistent "energy trail" effect using semi-transparent overlay
-      ctx.fillStyle = "rgba(5,5,5,0.22)"; // Denser trail
+      time++;
+      ctx.fillStyle = "#060608";
       ctx.fillRect(0, 0, W, H);
 
-      // Render a subtle influence "Pulse Field"
-      if (mouseActive) {
-        const timePulse = Math.sin(Date.now()/500) * 20;
-        const g = ctx.createRadialGradient(mx, my, 0, mx, my, INFLUENCE_R + timePulse);
-        g.addColorStop(0, "rgba(0,255,255,0.06)");
-        g.addColorStop(0.5, "rgba(255,0,255,0.03)");
-        g.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(mx, my, INFLUENCE_R + timePulse, 0, Math.PI * 2);
-        ctx.fill();
+      // Compute social pressure on each agent
+      let totalConformity = 0;
+      for (const ag of agents) {
+        const dxC = mx - ag.x, dyC = my - ag.y;
+        const distCursor = Math.sqrt(dxC * dxC + dyC * dyC);
+        const aiProximity = Math.max(0, 1 - distCursor / 140);
+
+        // AI proximity boosts confidence
+        ag.confidence += (aiProximity - ag.confidence) * 0.05;
+        ag.confidence = Math.max(0.05, Math.min(1, ag.confidence));
+
+        // Peer pressure: count majority vs minority neighbors
+        let majorCount = 0, minorCount = 0;
+        for (const nb of agents) {
+          if (nb === ag) continue;
+          const dx = nb.x - ag.x, dy = nb.y - ag.y;
+          if (Math.sqrt(dx * dx + dy * dy) > 180) continue;
+          const angleDiff = Math.abs(nb.displayAngle - MAJORITY_ANGLE);
+          if (angleDiff < 0.5) majorCount++;
+          else minorCount++;
+        }
+
+        const socialPressure = majorCount / (majorCount + minorCount + 1);
+        // Conformity drifts with social pressure, resisted by AI-boosted confidence
+        const target = socialPressure * (1 - ag.confidence * 0.9);
+        ag.conformity += (target - ag.conformity) * 0.006;
+        ag.conformity = Math.max(0, Math.min(1, ag.conformity));
+
+        // Display angle interpolates between private belief and majority opinion
+        const targetDisplay = ag.angle * (1 - ag.conformity) + MAJORITY_ANGLE * ag.conformity;
+        ag.displayAngle += (targetDisplay - ag.displayAngle) * 0.04;
+
+        totalConformity += ag.conformity;
       }
 
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
-        let alignX = 0, alignY = 0, cohX = 0, cohY = 0, sepX = 0, sepY = 0, neighbours = 0;
+      if (time % 30 === 0) setConformityPct(Math.round((totalConformity / N) * 100));
 
-        for (let j = 0; j < particles.length; j++) {
-          if (i === j) continue;
-          const q = particles[j];
-          const dx = q.x - p.x, dy = q.y - p.y;
-          const d = Math.sqrt(dx * dx + dy * dy);
-
-          if (d < PERCEPTION_R) {
-            alignX += Math.cos(q.angle); alignY += Math.sin(q.angle);
-            cohX += q.x; cohY += q.y;
-            neighbours++;
-            if (d < SEPARATION_R && d > 0) { sepX -= dx / d; sepY -= dy / d; }
-          }
+      // Draw influence connections (faint lines between conforming neighbours)
+      for (let i = 0; i < agents.length; i++) {
+        for (let j = i + 1; j < agents.length; j++) {
+          const a = agents[i], b = agents[j];
+          const dx = b.x - a.x, dy = b.y - a.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 150) continue;
+          const sharedConformity = (a.conformity + b.conformity) / 2;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.strokeStyle = `rgba(150, 160, 255, ${sharedConformity * 0.12})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
         }
+      }
 
-        let ax = 0, ay = 0;
-        if (neighbours > 0) {
-          ax += (alignX / neighbours) * ALIGNMENT_W;
-          ay += (alignY / neighbours) * ALIGNMENT_W;
-          ax += ((cohX / neighbours) - p.x) * COHESION_W;
-          ay += ((cohY / neighbours) - p.y) * COHESION_W;
-        }
-        ax += sepX * SEPARATION_W; ay += sepY * SEPARATION_W;
-
-        if (mouseActive) {
-          const cdx = mx - p.x, cdy = my - p.y;
-          const cd = Math.sqrt(cdx * cdx + cdy * cdy);
-          if (cd < INFLUENCE_R) {
-            p.influence = 1 - cd / INFLUENCE_R;
-            const strength = CURSOR_W * p.influence;
-            ax += (cdx / cd) * strength;
-            ay += (cdy / cd) * strength;
-          } else { p.influence *= 0.9; }
-        } else { p.influence *= 0.9; }
-
-        const vx = Math.cos(p.angle) * p.speed + ax;
-        const vy = Math.sin(p.angle) * p.speed + ay;
-        p.angle = Math.atan2(vy, vx);
-        p.speed = Math.min(Math.sqrt(vx * vx + vy * vy), MAX_SPEED);
-        p.x += Math.cos(p.angle) * p.speed;
-        p.y += Math.sin(p.angle) * p.speed;
-
-        if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
-        if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
-
-        // "VIBRANT" COLOR MAPPING
-        // Neutral: Cool Cyan/White
-        // Influenced: Magenta/Neon Pink
-        const r = Math.round(100 + p.influence * 155);
-        const g = Math.round(255 - p.influence * 200);
-        const b = Math.round(255 - p.influence * 50);
-        
+      // Draw AI cursor zone
+      if (mx > 0) {
+        const pulse = Math.sin(time * 0.05) * 8;
+        const g = ctx.createRadialGradient(mx, my, 0, mx, my, 140 + pulse);
+        g.addColorStop(0, "rgba(80, 255, 200, 0.06)");
+        g.addColorStop(1, "rgba(80, 255, 200, 0)");
+        ctx.fillStyle = g;
         ctx.beginPath();
-        const len = 4 + p.speed * 3;
-        const ex = Math.cos(p.angle) * len;
-        const ey = Math.sin(p.angle) * len;
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(p.x - ex, p.y - ey);
-        
-        ctx.strokeStyle = `rgba(${r},${g},${b},${0.4 + p.influence * 0.6})`;
-        ctx.lineWidth = 1.2 + p.influence * 2;
+        ctx.arc(mx, my, 140 + pulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Cursor label
+        ctx.font = "10px monospace";
+        ctx.fillStyle = "rgba(80, 255, 200, 0.6)";
+        ctx.textAlign = "center";
+        ctx.fillText("AI DISSENTER", mx, my - 20);
+        ctx.textAlign = "left";
+      }
+
+      // Draw agents
+      for (const ag of agents) {
+        const isMinority = ag.conformity < 0.35;
+        const dxC = mx - ag.x, dyC = my - ag.y;
+        const aiBoost = Math.max(0, 1 - Math.sqrt(dxC * dxC + dyC * dyC) / 140);
+
+        // Agent body circle
+        const radius = 8;
+        const r = isMinority ? Math.round(60 + aiBoost * 60) : Math.round(130 + ag.conformity * 80);
+        const g2 = isMinority ? Math.round(200 + aiBoost * 55) : Math.round(140 - ag.conformity * 60);
+        const b2 = 255;
+
+        ctx.beginPath();
+        ctx.arc(ag.x, ag.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${r}, ${g2}, ${b2}, ${0.5 + ag.confidence * 0.5})`;
+        if (isMinority && aiBoost > 0.1) {
+          ctx.shadowBlur = 12 * aiBoost;
+          ctx.shadowColor = "rgba(80, 255, 200, 0.8)";
+        }
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Arrow showing public opinion direction
+        const arrowLen = 18;
+        const ax = ag.x + Math.cos(ag.displayAngle) * arrowLen;
+        const ay = ag.y + Math.sin(ag.displayAngle) * arrowLen;
+        ctx.beginPath();
+        ctx.moveTo(ag.x, ag.y);
+        ctx.lineTo(ax, ay);
+        ctx.strokeStyle = `rgba(${r}, ${g2}, ${b2}, 0.9)`;
+        ctx.lineWidth = 1.5;
         ctx.stroke();
 
-        // Little glowing head
-        ctx.fillStyle = `rgba(${r},${g},${b},0.8)`;
+        // Arrowhead
+        const headLen = 5;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 1.5 + p.influence * 1.5, 0, Math.PI * 2);
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(
+          ax - headLen * Math.cos(ag.displayAngle - 0.4),
+          ay - headLen * Math.sin(ag.displayAngle - 0.4)
+        );
+        ctx.lineTo(
+          ax - headLen * Math.cos(ag.displayAngle + 0.4),
+          ay - headLen * Math.sin(ag.displayAngle + 0.4)
+        );
+        ctx.closePath();
+        ctx.fillStyle = `rgba(${r}, ${g2}, ${b2}, 0.9)`;
         ctx.fill();
       }
 
@@ -149,22 +194,30 @@ export default function ConformityExperiment() {
     };
 
     tick();
-
     const onResize = () => { W = window.innerWidth; H = window.innerHeight; canvas.width = W; canvas.height = H; };
     window.addEventListener("resize", onResize);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseleave", onLeave); window.removeEventListener("resize", onResize); };
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseleave", onLeave);
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
   return (
-    <div style={{ background:"#050505", width:"100vw", height:"100vh", overflow:"hidden", position:"relative" }}>
-      <canvas ref={canvasRef} style={{ display:"block" }} />
-      <div style={{
-        position:"absolute", bottom:32, left:36,
-        fontFamily:"monospace", fontSize:"11px", color:"rgba(255,255,255,0.4)",
-        letterSpacing:"0.12em", textTransform:"uppercase", pointerEvents:"none",
-      }}>
-        <div style={{color:"#0ff", marginBottom:"4px"}}>Status: Multi-agent Synchrony Test</div>
-        <div>Normative Pull: {`[|||||-----]`}</div>
+    <div style={{ background: "#060608", width: "100vw", height: "100vh", overflow: "hidden", position: "relative" }}>
+      <canvas ref={canvasRef} style={{ display: "block" }} />
+
+      {/* Legend */}
+      <div style={{ position: "absolute", top: 40, left: 48, fontFamily: "monospace", color: "#fff", pointerEvents: "none", fontSize: 12, letterSpacing: 2 }}>
+        <p style={{ opacity: 0.4, marginBottom: 8 }}>EXPERIMENT / 01</p>
+        <p style={{ color: "#8899ee" }}>GROUP CONFORMITY PRESSURE: <span style={{ color: "#ff8888" }}>{conformityPct}%</span></p>
+      </div>
+
+      <div style={{ position: "absolute", bottom: 48, left: 48, fontFamily: "monospace", fontSize: 11, color: "rgba(255,255,255,0.35)", pointerEvents: "none", lineHeight: 1.8, maxWidth: 400 }}>
+        <span style={{ color: "rgba(80,255,200,0.6)" }}>●</span> Minority: resisting majority direction<br />
+        <span style={{ color: "rgba(130,140,255,0.6)" }}>●</span> Majority: conforming to shared norm<br />
+        Hover cursor (AI Dissenter) near agents to protect their private beliefs.
       </div>
     </div>
   );
