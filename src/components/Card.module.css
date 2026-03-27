@@ -1,0 +1,63 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 32px 24px;
+  color: var(--foreground);
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  height: 100%;
+}
+
+.card:hover {
+  background-color: var(--card-hover);
+  border-color: #444;
+  transform: translateY(-2px);
+}
+
+.topRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 40px;
+}
+
+.number {
+  font-size: 1.125rem;
+  font-weight: 300;
+  color: var(--subtext);
+  font-family: monospace;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.theoryName {
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.description {
+  font-size: 0.875rem;
+  color: var(--subtext);
+  line-height: 1.5;
+}

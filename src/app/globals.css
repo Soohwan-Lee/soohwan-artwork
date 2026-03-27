@@ -1,0 +1,41 @@
+:root {
+  --background: #000000;
+  --page-background: #0a0a0a;
+  --foreground: #ededed;
+  --subtext: #888888;
+  --border: #222222;
+  --card-bg: #0a0a0a;
+  --card-hover: #141414;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  background-color: var(--page-background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1, h2, h3, h4 {
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+iframe {
+  border: none;
+}
