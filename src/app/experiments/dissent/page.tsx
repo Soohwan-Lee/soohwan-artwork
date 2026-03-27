@@ -2,24 +2,35 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// Dissenting Minority v3: Power Asymmetry & Resistance
-// The network pulses with "Information Flow." 
-// When mediation is triggered, a vibrant "Red Wave" propagates
-// from the minority cores, protecting the dissenters and
-// momentarily disrupting the majority's pull.
-// Added: Glowing nodes, pulsing edges, and shockwave propagation.
+// Dissenting Minority v4: Force-Directed Social Network
+// A physical simulation of a network. The majority (blue/grey) 
+// forms a dense, tightly cohesive cluster (highly interconnected).
+// The minority (red) sits on the periphery with few ties.
+// 
+// INTERACTION: Holding down triggers the "AI Mediation Shield."
+// This emits a powerful physical repulsive force from the minority 
+// nodes, visibly shoving the majority away to protect their space.
 
 interface Node {
-  id: number; x: number; y: number; vx: number; vy: number;
-  opinion: number; isCore: boolean; radius: number;
-  pulse: number;
+  id: number;
+  x: number; y: number;
+  vx: number; vy: number;
+  isMinority: boolean;
+  radius: number;
 }
 
-interface Edge { a: number; b: number; strength: number; }
+interface Edge {
+  source: Node;
+  target: Node;
+  strength: number;
+}
 
-const N_NODES = 70;
-const N_MINORITY = 4;
-const CONNECT_R = 140;
+const N_NODES = 85;
+const N_MINORITY = 6;
+const REPULSION = 1400; // Coulomb constant
+const ATTRACTION = 0.015; // Spring constant
+const DAMPING = 0.65;
+const CENTER_FORCE = 0.035;
 
 export default function DissentExperiment() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -34,23 +45,30 @@ export default function DissentExperiment() {
     let W = window.innerWidth, H = window.innerHeight;
     canvas.width = W; canvas.height = H;
 
+    // Initialize Nodes
     const nodes: Node[] = Array.from({ length: N_NODES }, (_, i) => ({
       id: i,
-      x: W * 0.15 + Math.random() * W * 0.7,
-      y: H * 0.15 + Math.random() * H * 0.7,
-      vx: (Math.random() - 0.5) * 0.5,
-      vy: (Math.random() - 0.5) * 0.5,
-      opinion: i < N_MINORITY ? 1 : 0,
-      isCore: i < N_MINORITY,
-      radius: i < N_MINORITY ? 8 : 4.5,
-      pulse: 0,
+      x: W / 2 + (Math.random() - 0.5) * 400,
+      y: H / 2 + (Math.random() - 0.5) * 400,
+      vx: 0, vy: 0,
+      isMinority: i < N_MINORITY,
+      radius: i < N_MINORITY ? 6 : 3.5,
     }));
 
+    // Initialize Edges (Homophily: majority connects tightly to majority)
     const edges: Edge[] = [];
     for (let i = 0; i < N_NODES; i++) {
       for (let j = i + 1; j < N_NODES; j++) {
-        const d = Math.sqrt(Math.pow(nodes[i].x - nodes[j].x, 2) + Math.pow(nodes[i].y - nodes[j].y, 2));
-        if (d < CONNECT_R) edges.push({ a: i, b: j, strength: 1 - d/CONNECT_R });
+        const n1 = nodes[i], n2 = nodes[j];
+        let prob = 0.05; // Base probability
+
+        if (!n1.isMinority && !n2.isMinority) prob = 0.18; // Dense majority core
+        if (n1.isMinority && n2.isMinority) prob = 0.25;   // Minority solidarity
+        if (n1.isMinority !== n2.isMinority) prob = 0.015; // Weak ties across groups
+
+        if (Math.random() < prob) {
+          edges.push({ source: n1, target: n2, strength: 1.0 });
+        }
       }
     }
 
@@ -59,83 +77,117 @@ export default function DissentExperiment() {
 
     const tick = () => {
       time++;
-      ctx.fillStyle = "rgba(5,5,5,0.4)";
+      // Deep fade for a slightly liquid feel
+      ctx.fillStyle = "rgba(5,5,5,0.3)";
       ctx.fillRect(0, 0, W, H);
 
       const isMed = medRef.current;
+      const forceMultiplier = isMed ? 25 : 1; 
 
-      // Update dynamics
-      for (const n of nodes) {
-        if (n.isCore && isMed) {
-          n.opinion = 1.0; n.pulse = Math.sin(time/5)*0.5 + 0.5;
-        } else {
-          let sum = 0, count = 0;
-          for (const e of edges) {
-            let o = -1; if (e.a === n.id) o = e.b; else if (e.b === n.id) o = e.a;
-            if (o !== -1) { sum += nodes[o].opinion; count++; }
+      // 1. Calculate Forces
+      for (let i = 0; i < nodes.length; i++) {
+        const n1 = nodes[i];
+        let fx = (W / 2 - n1.x) * CENTER_FORCE; // Pull to center
+        let fy = (H / 2 - n1.y) * CENTER_FORCE;
+
+        // Repulsion (All pairs)
+        for (let j = 0; j < nodes.length; j++) {
+          if (i === j) continue;
+          const n2 = nodes[j];
+          const dx = n1.x - n2.x;
+          const dy = n1.y - n2.y;
+          const distSq = dx * dx + dy * dy;
+          if (distSq === 0) continue;
+          
+          let repulse = REPULSION / distSq;
+          
+          // >>> AI MEDIATION EFFECT <<<
+          // If mediation is active, minority nodes brutally push majority nodes away
+          if (isMed && n1.isMinority && !n2.isMinority && distSq < 80000) {
+            repulse *= 85; // Massive shield
+          } else if (isMed && !n1.isMinority && n2.isMinority && distSq < 80000) {
+            repulse *= 85; // Reciprocal shield
           }
-          const avg = count > 0 ? sum / count : 0;
-          const drift = (avg - n.opinion) * 0.008 + (0 - n.opinion) * 0.005;
-          const boost = isMed && n.opinion > 0.4 ? 0.006 : 0;
-          n.opinion = Math.max(0, Math.min(1, n.opinion + drift + boost));
-          n.pulse *= 0.95;
-        }
 
-        n.x += n.vx; n.y += n.vy;
-        if (n.x < 40 || n.x > W-40) n.vx *= -1;
-        if (n.y < 40 || n.y > H-40) n.vy *= -1;
+          fx += (dx / Math.sqrt(distSq)) * repulse;
+          fy += (dy / Math.sqrt(distSq)) * repulse;
+        }
+        
+        n1.vx += fx; n1.vy += fy;
       }
 
-      // Draw Edges with glowing flow
-      for (const e of edges) {
-        const a = nodes[e.a], b = nodes[e.b];
-        const avgOp = (a.opinion + b.opinion) / 2;
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
+      // 2. Attraction (Spring along edges)
+      for (const edge of edges) {
+        const dx = edge.target.x - edge.source.x;
+        const dy = edge.target.y - edge.source.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
         
-        const opacity = 0.05 + e.strength * 0.15 + avgOp * 0.4;
-        const color = avgOp > 0.5 ? `255,100,100` : `100,120,255`;
-        ctx.strokeStyle = `rgba(${color},${opacity})`;
-        ctx.lineWidth = 0.5 + avgOp * 1.5;
-        ctx.stroke();
+        // Let springs snap or stretch during mediation
+        const springForce = (dist - 50) * ATTRACTION; 
+        
+        edge.source.vx += dx / dist * springForce;
+        edge.source.vy += dy / dist * springForce;
+        edge.target.vx -= dx / dist * springForce;
+        edge.target.vy -= dy / dist * springForce;
+      }
 
-        // Animate a "pulse" particle along edges
-        if (Math.random() < 0.02) {
-          const t = (time % 100) / 100;
-          const px = a.x + (b.x - a.x) * t;
-          const py = a.y + (b.y - a.y) * t;
-          ctx.fillStyle = `rgba(${color},${opacity * 2})`;
+      // 3. Update Positions & Draw Edges
+      for (const n of nodes) {
+        n.vx *= DAMPING; n.vy *= DAMPING;
+        n.x += n.vx; n.y += n.vy;
+
+        // Soft boundaries
+        if (n.x < 50) n.vx += 2; if (n.x > W-50) n.vx -= 2;
+        if (n.y < 50) n.vy += 2; if (n.y > H-50) n.vy -= 2;
+      }
+
+      // Render Edges
+      for (const edge of edges) {
+        ctx.beginPath();
+        ctx.moveTo(edge.source.x, edge.source.y);
+        ctx.lineTo(edge.target.x, edge.target.y);
+        
+        const isMinorityEdge = edge.source.isMinority || edge.target.isMinority;
+        if (isMinorityEdge) {
+          ctx.strokeStyle = isMed ? "rgba(255, 60, 60, 0.45)" : "rgba(255, 100, 100, 0.15)";
+        } else {
+          ctx.strokeStyle = "rgba(100, 140, 255, 0.12)";
+        }
+        
+        ctx.lineWidth = isMinorityEdge && isMed ? 1.5 : 0.6;
+        ctx.stroke();
+      }
+
+      // Render Nodes & Shields
+      for (const n of nodes) {
+        // Minority Shield Aura
+        if (n.isMinority && isMed) {
+          const pulseR = 50 + Math.sin(time / 4) * 15;
+          const shield = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, pulseR);
+          shield.addColorStop(0, "rgba(255, 40, 40, 0.4)");
+          shield.addColorStop(0.6, "rgba(255, 40, 40, 0.1)");
+          shield.addColorStop(1, "rgba(255, 60, 60, 0)");
+          ctx.fillStyle = shield;
           ctx.beginPath();
-          ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+          ctx.arc(n.x, n.y, pulseR, 0, Math.PI * 2);
           ctx.fill();
         }
-      }
-
-      // Draw Nodes
-      for (const n of nodes) {
-        const hue = n.opinion > 0.5 ? `255, 60, 60` : `80, 100, 240`;
-        const size = n.radius + (n.opinion * 3);
-
-        if (n.opinion > 0.5) {
-          ctx.shadowBlur = 10 + n.pulse * 20;
-          ctx.shadowColor = `rgba(${hue}, 0.8)`;
-        }
 
         ctx.beginPath();
-        ctx.arc(n.x, n.y, size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${hue}, ${0.4 + n.opinion * 0.6})`;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-
-        // Core Ring
-        if (n.isCore) {
-          ctx.strokeStyle = "#fff";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, size + 4, 0, Math.PI * 2);
-          ctx.stroke();
+        ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+        
+        if (n.isMinority) {
+          ctx.fillStyle = isMed ? "#ff2a2a" : "#dd4444";
+          ctx.shadowBlur = isMed ? 20 : 10;
+          ctx.shadowColor = "#ff2a2a";
+        } else {
+          ctx.fillStyle = "#88aaff";
+          ctx.shadowBlur = 5;
+          ctx.shadowColor = "#4477ff";
         }
+        
+        ctx.fill();
+        ctx.shadowBlur = 0; // Reset
       }
 
       raf = requestAnimationFrame(tick);
@@ -149,19 +201,23 @@ export default function DissentExperiment() {
 
   return (
     <div 
-      style={{ background:"#050505", width:"100vw", height:"100vh", overflow:"hidden", position:"relative", cursor:"pointer" }}
+      style={{ background:"#050505", width:"100vw", height:"100vh", overflow:"hidden", position:"relative", cursor:"pointer", userSelect:"none" }}
       onPointerDown={() => setMediation(true)}
       onPointerUp={() => setMediation(false)}
+      onPointerLeave={() => setMediation(false)}
     >
       <canvas ref={canvasRef} style={{ display:"block" }} />
-      <div style={{ position:"absolute", top:32, left:36, fontFamily:"monospace", color:"#fff", pointerEvents:"none", fontSize:11, letterSpacing:2 }}>
-        <p style={{opacity:0.6}}>Status: Minority Influence Resistance Test</p>
-        <p style={{color: mediation ? "#ff3c3c" : "#5064f0", transition:"color 0.3s"}}>
-          {mediation ? ">> MEDIATION PULSE ACTIVE <<" : ">> ASSIMILATION PRESSURE: HIGH <<"}
+      
+      {/* UI Overlay */}
+      <div style={{ position:"absolute", top:40, left:48, fontFamily:"monospace", color:"#fff", pointerEvents:"none", fontSize:12, letterSpacing:2 }}>
+        <p style={{opacity:0.5, marginBottom:6}}>EXPERIMENT / 02</p>
+        <p style={{fontWeight: 600, color: mediation ? "#ff3c3c" : "#88aaff", transition:"color 0.3s"}}>
+          {mediation ? ">> MEDIATION ACTIVE: FORCE FIELD DEPLOYED" : ">> STATUS: UNMEDIATED ASSIMILATION PRESSURE"}
         </p>
       </div>
-      <div style={{ position:"absolute", bottom:32, left:36, fontSize:10, color:"rgba(255,255,255,0.3)", pointerEvents:"none" }}>
-        Hold to trigger AI-mediated resistance signals.
+      
+      <div style={{ position:"absolute", bottom:48, left:48, fontSize:12, color:"rgba(255,255,255,0.4)", pointerEvents:"none", lineHeight: 1.6, maxWidth: 320 }}>
+        [Hold Click] to trigger an AI intervention that physically protects the minority (Red) from majority absorption (Blue).
       </div>
     </div>
   );

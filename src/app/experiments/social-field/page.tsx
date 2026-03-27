@@ -2,34 +2,43 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// Social Field Theory v1: Kurt Lewin's Gravity Well
-// Inspired by Lewin's Field Theory (B = f(P, E)).
-// The social group is a force field (mesh). Clicking drops an "AI Mass" 
-// that warps local force vectors, symbolizing the profound impact 
-// of AI agents on collective group spaces.
-// Tech: 2D Canvas warped grid system.
+// Social Field Theory v2: Human Connective Tissue & AI Mass
+// In Lewin's Field Theory, individuals exist in a web of social forces.
+// This version replaces the abstract grid with actual "Human Nodes"
+// connected by elastic "Social Ties".
+// When an AI Agent (Mass) drops, it exerts gravitational pull on the humans.
+// Their ties physically stretch and glow red-hot under the tension,
+// visualizing how AI distorts the social fabric.
 
-interface GridPoint {
-  ox: number; oy: number; // Original
-  x: number; y: number;   // Current
+interface HumanNode {
+  ox: number; oy: number; // Home anchor (equilibrium)
+  x: number; y: number;   // Current pos
+  vx: number; vy: number; // Velocity
 }
 
-interface AINode {
+interface SocialTie {
+  a: HumanNode;
+  b: HumanNode;
+  restLength: number;
+}
+
+interface AIMass {
   x: number; y: number;
-  mass: number;
-  life: number;
+  mass: number; life: number;
 }
 
-const GRID_SIZE = 35; // Spacing
-const MESH_SPEED = 0.08;
-const GRAVITY_STRENGTH = 4500;
+const SPACING = 45;
+const SPRING_K = 0.08;      // Stiffness of social ties
+const ANCHOR_K = 0.005;     // Pull to equilibrium
+const DAMPING = 0.82;
+const GRAVITY_STRENGTH = 25000;
 
 export default function SocialFieldExperiment() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [aiNodes, setAiNodes] = useState<AINode[]>([]);
-  const nodesRef = useRef<AINode[]>([]);
+  const [aiMasses, setAiMasses] = useState<AIMass[]>([]);
+  const massesRef = useRef<AIMass[]>([]);
 
-  useEffect(() => { nodesRef.current = aiNodes; }, [aiNodes]);
+  useEffect(() => { massesRef.current = aiMasses; }, [aiMasses]);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -37,109 +46,148 @@ export default function SocialFieldExperiment() {
     let W = window.innerWidth, H = window.innerHeight;
     canvas.width = W; canvas.height = H;
 
-    const points: GridPoint[] = [];
-    const cols = Math.ceil(W / GRID_SIZE) + 2;
-    const rows = Math.ceil(H / GRID_SIZE) + 2;
+    const nodes: HumanNode[] = [];
+    const ties: SocialTie[] = [];
+    
+    // Create Grid of Humans
+    const cols = Math.floor(W / SPACING) + 2;
+    const rows = Math.floor(H / SPACING) + 2;
+    
+    // Offset to center
+    const offsetX = (W - (cols * SPACING)) / 2;
+    const offsetY = (H - (rows * SPACING)) / 2;
 
-    for (let j = 0; j < rows; j++) {
-      for (let i = 0; i < cols; i++) {
-        points.push({
-          ox: i * GRID_SIZE,
-          oy: j * GRID_SIZE,
-          x: i * GRID_SIZE,
-          y: j * GRID_SIZE
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        nodes.push({
+          ox: offsetX + c * SPACING,
+          oy: offsetY + r * SPACING,
+          x: offsetX + c * SPACING,
+          y: offsetY + r * SPACING,
+          vx: 0, vy: 0
         });
       }
     }
 
+    // Connect them (Horizontal and Vertical ties)
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const i = r * cols + c;
+        if (c < cols - 1) ties.push({ a: nodes[i], b: nodes[i + 1], restLength: SPACING });
+        if (r < rows - 1) ties.push({ a: nodes[i], b: nodes[i + cols], restLength: SPACING });
+      }
+    }
+
     let raf: number;
-    let time = 0;
 
     const tick = () => {
-      time++;
+      // Atmospheric background
       ctx.fillStyle = "#050505";
       ctx.fillRect(0, 0, W, H);
-
-      // Deep Space Atmosphere
-      const g = ctx.createLinearGradient(0,0,W,H);
-      g.addColorStop(0, "rgba(0,30,60,0.1)");
-      g.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = g;
-      ctx.fillRect(0,0,W,H);
-
-      const activeNodes = nodesRef.current;
       
-      // Update Grid Dynamics
-      points.forEach(p => {
-        let tx = p.ox, ty = p.oy;
-        
-        activeNodes.forEach(n => {
-          const dx = n.x - p.ox, dy = n.y - p.oy;
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, "rgba(0, 20, 40, 0.4)");
+      g.addColorStop(1, "rgba(0, 0, 0, 0.8)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+
+      const masses = massesRef.current;
+
+      // 1. Calculate Forces on Humans
+      for (const n of nodes) {
+        let fx = (n.ox - n.x) * ANCHOR_K;
+        let fy = (n.oy - n.y) * ANCHOR_K;
+
+        // Gravity pull from AI Masses
+        for (const m of masses) {
+          const dx = m.x - n.x;
+          const dy = m.y - n.y;
           const distSq = dx * dx + dy * dy;
-          const dist = Math.sqrt(distSq);
-          if (dist < 400) {
-            const force = (GRAVITY_STRENGTH * n.mass) / (distSq + 2000);
-            tx += (dx / dist) * force * 15;
-            ty += (dy / dist) * force * 15;
+          if (distSq > 100) {
+            const pull = (GRAVITY_STRENGTH * m.mass) / distSq;
+            fx += (dx / Math.sqrt(distSq)) * pull;
+            fy += (dy / Math.sqrt(distSq)) * pull;
           }
-        });
-
-        // Smoothly interpolate to target
-        p.x += (tx - p.x) * MESH_SPEED;
-        p.y += (ty - p.y) * MESH_SPEED;
-      });
-
-      // Draw Grid Lines (Horizontal)
-      ctx.beginPath();
-      ctx.strokeStyle = "rgba(0, 160, 255, 0.15)";
-      ctx.lineWidth = 0.8;
-      for (let j = 0; j < rows; j++) {
-        for (let i = 0; i < cols - 1; i++) {
-          const p1 = points[j * cols + i];
-          const p2 = points[j * cols + i + 1];
-          ctx.moveTo(p1.x, p1.y);
-          ctx.lineTo(p2.x, p2.y);
         }
+        
+        n.vx += fx; n.vy += fy;
       }
-      ctx.stroke();
 
-      // Draw Grid Lines (Vertical)
-      ctx.beginPath();
-      for (let i = 0; i < cols; i++) {
-        for (let j = 0; j < rows - 1; j++) {
-          const p1 = points[j * cols + i];
-          const p2 = points[(j + 1) * cols + i];
-          ctx.moveTo(p1.x, p1.y);
-          ctx.lineTo(p2.x, p2.y);
-        }
+      // 2. Spring Forces (Social Ties)
+      for (const tie of ties) {
+        const dx = tie.b.x - tie.a.x;
+        const dy = tie.b.y - tie.a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        // Elastic force
+        const force = (dist - tie.restLength) * SPRING_K;
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
+
+        tie.a.vx += fx; tie.a.vy += fy;
+        tie.b.vx -= fx; tie.b.vy -= fy;
       }
-      ctx.stroke();
 
-      // Draw Active AI Masses
-      activeNodes.forEach(n => {
-        const glow = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, 40 * n.mass);
-        glow.addColorStop(0, "rgba(255, 200, 0, 0.8)");
-        glow.addColorStop(0.5, "rgba(255, 100, 0, 0.2)");
+      // 3. Update Positions
+      for (const n of nodes) {
+        n.vx *= DAMPING; n.vy *= DAMPING;
+        n.x += n.vx; n.y += n.vy;
+      }
+
+      // 4. Render Ties (Color based on tension stretching)
+      for (const tie of ties) {
+        const dx = tie.b.x - tie.a.x;
+        const dy = tie.b.y - tie.a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const stretch = Math.max(0, dist - tie.restLength);
+        
+        // Normalize stretch (0 = cool blue, 30+ = hot orange/red)
+        const heat = Math.min(1.0, stretch / 35);
+
+        ctx.beginPath();
+        ctx.moveTo(tie.a.x, tie.a.y);
+        ctx.lineTo(tie.b.x, tie.b.y);
+        
+        // Shift color from 200 (Blue) to 10 (Red/Orange)
+        const hue = 200 - (heat * 190); 
+        ctx.strokeStyle = `hsla(${hue}, 100%, ${60 + (heat*20)}%, ${0.2 + (heat*0.8)})`;
+        ctx.lineWidth = 0.8 + (heat * 1.5);
+        ctx.stroke();
+      }
+
+      // 5. Render Human Nodes
+      ctx.fillStyle = "rgba(100, 200, 255, 0.4)";
+      for (const n of nodes) {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 6. Render AI Masses (Gravity Cores)
+      for (const m of masses) {
+        const rad = 60 * m.mass;
+        const glow = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, rad);
+        glow.addColorStop(0, "rgba(255, 140, 0, 0.6)");
+        glow.addColorStop(0.3, "rgba(255, 60, 0, 0.2)");
         glow.addColorStop(1, "rgba(0, 0, 0, 0)");
         
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(n.x, n.y, 40 * n.mass, 0, Math.PI * 2);
+        ctx.arc(m.x, m.y, rad, 0, Math.PI * 2);
         ctx.fill();
 
-        // Core
         ctx.fillStyle = "#fff";
         ctx.beginPath();
-        ctx.arc(n.x, n.y, 3 * n.mass, 0, Math.PI * 2);
+        ctx.arc(m.x, m.y, 4 * m.mass, 0, Math.PI * 2);
         ctx.fill();
-        
-        n.life -= 0.005;
-        n.mass = Math.max(0, n.life);
-      });
 
-      // Cleanup dead nodes
-      if (activeNodes.some(n => n.life <= 0)) {
-        setAiNodes(prev => prev.filter(n => n.life > 0));
+        m.life -= 0.005;
+        m.mass = Math.max(0, m.life);
+      }
+
+      // Cleanup dead AI masses
+      if (masses.some(m => m.life <= 0)) {
+        setAiMasses(prev => prev.filter(m => m.life > 0));
       }
 
       raf = requestAnimationFrame(tick);
@@ -152,27 +200,26 @@ export default function SocialFieldExperiment() {
   }, []);
 
   const handleClick = (e: React.MouseEvent) => {
-    const newNode: AINode = {
-      x: e.clientX,
-      y: e.clientY,
-      mass: 1.0,
-      life: 1.0
-    };
-    setAiNodes(prev => [...prev, newNode]);
+    setAiMasses(prev => [...prev, { x: e.clientX, y: e.clientY, mass: 1.0, life: 1.0 }]);
   };
 
   return (
     <div 
-      style={{ background:"#050505", width:"100vw", height:"100vh", overflow:"hidden", position:"relative", cursor:"crosshair" }}
+      style={{ background:"#050505", width:"100vw", height:"100vh", overflow:"hidden", position:"relative", cursor:"crosshair", userSelect:"none" }}
       onClick={handleClick}
     >
       <canvas ref={canvasRef} style={{ display:"block" }} />
-      <div style={{ position:"absolute", top:32, left:36, fontFamily:"monospace", color:"#fff", pointerEvents:"none", fontSize:11, letterSpacing:2 }}>
-        <p style={{opacity:0.6}}>Status: Kurt Lewin's Social Field Mapper</p>
-        <p style={{color: "#00a0ff"}}>Click to Drop AI Participant Masses</p>
+      
+      <div style={{ position:"absolute", top:40, left:48, fontFamily:"monospace", color:"#fff", pointerEvents:"none", fontSize:12, letterSpacing:2 }}>
+        <p style={{opacity:0.5, marginBottom:6}}>EXPERIMENT / 04</p>
+        <p style={{fontWeight: 600, color: "#ff8c00"}}>
+          {">> CLICK TO DROP AI INTERVENTION (MASS)"}
+        </p>
       </div>
-      <div style={{ position:"absolute", bottom:32, left:36, fontSize:10, color:"rgba(255,255,255,0.3)", pointerEvents:"none" }}>
-        $B = f(P, E)$ — Visualizing the Life Space.
+      
+      <div style={{ position:"absolute", bottom:48, left:48, fontSize:12, color:"rgba(255,255,255,0.4)", pointerEvents:"none", lineHeight: 1.6, maxWidth: 360 }}>
+        Observing how AI distorts the social fabric. <br/>
+        Human ties stretch and heat up (Orange/Red) as they resist gravitational displacement.
       </div>
     </div>
   );
