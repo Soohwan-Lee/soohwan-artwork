@@ -2,18 +2,18 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 
-// Social Field Theory v3: Human Emoji Network + AI Agent Injection
-// People emojis (diverse) form the social field nodes.
-// A robot emoji (🤖) represents the AI agent dropped into the field.
-// Ties between humans stretch and heat up (blue -> orange/red) under AI gravity.
-// Physics: slow, deliberate, impactful.
+// Social Field Theory v4: Gentler gravity, stronger anchoring
+// People emojis form the social field nodes.
+// Robot emoji (🤖) = AI agent dropped into the field.
+// Tuned physics: softer pull, fast damping, displacement cap.
 
 const PEOPLE = ["🧑", "👩", "👨", "🧔", "👩‍🦱", "👨‍🦳", "🧕", "👱", "🧑‍🦲", "👴", "👵", "🧑‍🦰"];
 const SPACING = 90;
-const SPRING_K = 0.006;
-const ANCHOR_K = 0.0008;
-const DAMPING = 0.94;
-const GRAVITY = 3500;
+const SPRING_K = 0.008;
+const ANCHOR_K = 0.005;
+const DAMPING = 0.88;
+const GRAVITY = 1200;
+const MAX_DISPLACEMENT = 65;   // max px a node can move from anchor
 const EMOJI_SIZE = 16;
 
 interface HumanNode {
@@ -34,7 +34,7 @@ interface AIAgent {
   x: number; y: number;
   mass: number;
   life: number;
-  age: number; // incremented per frame
+  age: number;
 }
 
 export default function SocialFieldExperiment() {
@@ -87,8 +87,6 @@ export default function SocialFieldExperiment() {
 
     const tick = () => {
       ctx.clearRect(0, 0, W, H);
-
-      // Atmospheric gradient background
       ctx.fillStyle = "#060a0f";
       ctx.fillRect(0, 0, W, H);
 
@@ -97,18 +95,20 @@ export default function SocialFieldExperiment() {
       // Advance agent ages
       currentAgents.forEach(a => {
         a.age++;
-        a.life -= 0.0008; // Very slow decay
+        a.life -= 0.0008;
         a.mass = Math.max(0, a.life);
       });
 
       // 1. Forces on humans
       for (const n of nodes) {
+        // Anchor spring — pulls back to original position
         let fx = (n.ox - n.x) * ANCHOR_K;
         let fy = (n.oy - n.y) * ANCHOR_K;
 
         for (const ag of currentAgents) {
-          if (ag.age < 15) continue; // wait for landing animation
-          const ramp = Math.min(1, (ag.age - 15) / 80);
+          // Longer ramp-up: wait 30 frames, ramp over 160 frames
+          if (ag.age < 30) continue;
+          const ramp = Math.min(1, (ag.age - 30) / 160);
           const dx = ag.x - n.x;
           const dy = ag.y - n.y;
           const distSq = dx * dx + dy * dy;
@@ -122,7 +122,7 @@ export default function SocialFieldExperiment() {
         n.vx += fx; n.vy += fy;
       }
 
-      // 2. Spring forces
+      // 2. Spring forces along social ties
       for (const tie of ties) {
         const dx = tie.b.x - tie.a.x;
         const dy = tie.b.y - tie.a.y;
@@ -134,10 +134,23 @@ export default function SocialFieldExperiment() {
         tie.b.vx -= fx; tie.b.vy -= fy;
       }
 
-      // 3. Update positions
+      // 3. Update positions with displacement cap
       for (const n of nodes) {
         n.vx *= DAMPING; n.vy *= DAMPING;
         n.x += n.vx; n.y += n.vy;
+
+        // Enforce maximum displacement from anchor
+        const ddx = n.x - n.ox;
+        const ddy = n.y - n.oy;
+        const displacement = Math.sqrt(ddx * ddx + ddy * ddy);
+        if (displacement > MAX_DISPLACEMENT) {
+          const scale = MAX_DISPLACEMENT / displacement;
+          n.x = n.ox + ddx * scale;
+          n.y = n.oy + ddy * scale;
+          // Also reduce velocity when hitting the cap
+          n.vx *= 0.5;
+          n.vy *= 0.5;
+        }
       }
 
       // 4. Draw ties with heat coloring
@@ -167,33 +180,32 @@ export default function SocialFieldExperiment() {
 
       // 6. Draw AI agents (robot emoji + glow + shockwave on land)
       for (const ag of currentAgents) {
-        // Landing shockwave (first 40 frames)
+        // Landing shockwave (first 50 frames)
         if (ag.age < 50) {
           const t = ag.age / 50;
-          const ringR = t * 120;
+          const ringR = t * 100;
           ctx.beginPath();
           ctx.arc(ag.x, ag.y, ringR, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(255, 140, 0, ${(1 - t) * 0.8})`;
-          ctx.lineWidth = 2.5 - t * 2;
+          ctx.strokeStyle = `rgba(255, 140, 0, ${(1 - t) * 0.6})`;
+          ctx.lineWidth = 2 - t * 1.5;
           ctx.stroke();
 
-          // Second inner ring
-          if (ag.age > 10) {
-            const t2 = (ag.age - 10) / 40;
+          if (ag.age > 15) {
+            const t2 = (ag.age - 15) / 35;
             ctx.beginPath();
-            ctx.arc(ag.x, ag.y, t2 * 60, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(255, 200, 50, ${(1 - t2) * 0.5})`;
-            ctx.lineWidth = 1.5;
+            ctx.arc(ag.x, ag.y, t2 * 50, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(255, 200, 50, ${(1 - t2) * 0.35})`;
+            ctx.lineWidth = 1;
             ctx.stroke();
           }
         }
 
         // Persistent glow halo
-        const activeScale = Math.min(1, ag.age / 80);
-        const glowR = 50 * ag.mass * activeScale;
+        const activeScale = Math.min(1, ag.age / 120);
+        const glowR = 40 * ag.mass * activeScale;
         if (glowR > 1) {
           const glow = ctx.createRadialGradient(ag.x, ag.y, 0, ag.x, ag.y, glowR);
-          glow.addColorStop(0, `rgba(255, 160, 0, ${0.35 * activeScale})`);
+          glow.addColorStop(0, `rgba(255, 160, 0, ${0.25 * activeScale})`);
           glow.addColorStop(1, "rgba(255, 80, 0, 0)");
           ctx.fillStyle = glow;
           ctx.beginPath();
@@ -201,22 +213,22 @@ export default function SocialFieldExperiment() {
           ctx.fill();
         }
 
-        // Robot emoji, scaled with life
-        const botSize = 24 + 8 * activeScale;
+        // Robot emoji
+        const botSize = 24 + 6 * activeScale;
         ctx.font = `${botSize}px serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText("🤖", ag.x, ag.y);
 
-        // Subtle rotating dashed orbit ring
+        // Rotating dashed orbit ring
         if (activeScale > 0.2) {
           ctx.save();
           ctx.translate(ag.x, ag.y);
-          ctx.rotate(ag.age * 0.025);
+          ctx.rotate(ag.age * 0.015);
           ctx.beginPath();
           ctx.setLineDash([4, 8]);
           ctx.arc(0, 0, 22, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(255, 160, 0, ${0.25 * activeScale})`;
+          ctx.strokeStyle = `rgba(255, 160, 0, ${0.2 * activeScale})`;
           ctx.lineWidth = 1;
           ctx.stroke();
           ctx.setLineDash([]);
@@ -261,14 +273,14 @@ export default function SocialFieldExperiment() {
       <canvas ref={canvasRef} style={{ display: "block" }} />
       <div ref={overlayRef} />
 
-      <div style={{ position: "absolute", top: 40, left: 48, fontFamily: "monospace", color: "#fff", pointerEvents: "none", fontSize: 12, letterSpacing: 2 }}>
-        <p style={{ opacity: 0.4, marginBottom: 8 }}>EXPERIMENT / 04</p>
+      <div style={{ position: "absolute", top: 40, left: 48, fontFamily: "'Inter', monospace", color: "#fff", pointerEvents: "none", fontSize: 11, letterSpacing: 2.5 }}>
+        <p style={{ opacity: 0.35, marginBottom: 6, fontSize: 10 }}>EXPERIMENT / 04</p>
         <p style={{ fontWeight: 600, color: "#ff8c00" }}>
           {"[ CLICK TO INJECT AI AGENT 🤖 ]"}
         </p>
       </div>
 
-      <div style={{ position: "absolute", bottom: 48, left: 48, fontSize: 12, color: "rgba(255,255,255,0.3)", pointerEvents: "none", lineHeight: 1.8, maxWidth: 380 }}>
+      <div style={{ position: "absolute", bottom: 48, left: 48, fontFamily: "'Inter', monospace", fontSize: 10, color: "rgba(255,255,255,0.28)", pointerEvents: "none", lineHeight: 2, maxWidth: 380, letterSpacing: 0.5 }}>
         The social field — formed by people — bends under AI gravitational force.
         <br />
         Ties glow orange-red as they stretch under displacement.
