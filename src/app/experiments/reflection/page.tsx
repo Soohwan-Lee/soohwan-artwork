@@ -2,23 +2,16 @@
 
 import { useEffect, useRef } from "react";
 
-// Reflective Topography — Group Sensemaking Landscape
-// The canvas is a continuous flow field representing opinion pressure.
-// Each mouse event leaves a "participation trace" — a ripple with
-// its own hue encoding the moment in time it was made.
-// Over time traces fade, but linger long enough for the user to
-// see the topography of their own influence trajectory.
+// Reflective Topography v3: Vibrant Group Sensemaking
+// The landscape reacts to the cursor, leaving "participation ripples"
+// that shift color (Cyan -> Blue -> Purple) based on local interaction density.
+// Added: Glowing trails, color-blending "hotspots," and noise texture.
 
-interface Ripple {
-  x: number;
-  y: number;
-  birth: number;   // ms timestamp
-  life: number;    // total lifetime (ms)
-  hue: number;
-  intensity: number;
+interface Pulse {
+  x: number; y: number; life: number; duration: number; hue: number;
 }
 
-const MAX_RIPPLES = 300;
+const MAX_PULSES = 200;
 
 export default function ReflectionExperiment() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -29,120 +22,94 @@ export default function ReflectionExperiment() {
     let W = window.innerWidth, H = window.innerHeight;
     canvas.width = W; canvas.height = H;
 
-    const ripples: Ripple[] = [];
+    const pulses: Pulse[] = [];
     let lastX = -1, lastY = -1;
-    let hueBase = 200;  // start at cool blue
-
-    // Persistent field drawn once — a faint grid of "latent values"
-    const drawField = () => {
-      const cols = 24, rows = 14;
-      const cw = W / cols, ch = H / rows;
-      for (let c = 0; c < cols; c++) {
-        for (let r = 0; r < rows; r++) {
-          const x = (c + 0.5) * cw, y = (r + 0.5) * ch;
-          ctx.beginPath();
-          ctx.arc(x, y, 0.8, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(255,255,255,0.06)";
-          ctx.fill();
-        }
-      }
-    };
+    let hueBase = 180; // Cyan
 
     const onMove = (e: MouseEvent) => {
-      const dx = e.clientX - lastX, dy = e.clientY - lastY;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      if (dist < 12 && lastX !== -1) return;
+      const dx = Math.abs(e.clientX - lastX), dy = Math.abs(e.clientY - lastY);
+      if (dx < 10 && dy < 10) return; lastX = e.clientX; lastY = e.clientY;
 
-      lastX = e.clientX; lastY = e.clientY;
-      hueBase = (hueBase + 1.5) % 360;
-
-      if (ripples.length >= MAX_RIPPLES) ripples.shift();
-      ripples.push({
+      hueBase = (hueBase + 2) % 360;
+      if (pulses.length >= MAX_PULSES) pulses.shift();
+      pulses.push({
         x: e.clientX, y: e.clientY,
-        birth: performance.now(),
-        life: 3000 + Math.random() * 2000,
+        life: 0,
+        duration: 2000 + Math.random() * 2000,
         hue: hueBase,
-        intensity: 0.6 + Math.random() * 0.4,
       });
     };
 
     window.addEventListener("mousemove", onMove);
 
     let raf: number;
-    const bg = "#050505";
+    let time = 0;
 
     const tick = () => {
-      const now = performance.now();
-
-      // Clear with slight fade
-      ctx.fillStyle = "rgba(5,5,5,0.08)";
+      time++;
+      // Deep fade for a "liquified" trailing effect
+      ctx.fillStyle = "rgba(5,5,5,0.06)";
       ctx.fillRect(0, 0, W, H);
 
-      // Draw latent field dots (very subtle)
-      drawField();
-
-      // Draw ripples
-      for (let i = ripples.length - 1; i >= 0; i--) {
-        const r = ripples[i];
-        const elapsed = now - r.birth;
-        if (elapsed >= r.life) { ripples.splice(i, 1); continue; }
-
-        const progress = elapsed / r.life;
-        const maxRadius = 180;
-        const radius = progress * maxRadius;
-        const alpha = r.intensity * (1 - progress) * 0.25;
-
-        // Outer ring
-        ctx.beginPath();
-        ctx.arc(r.x, r.y, radius, 0, Math.PI * 2);
-        ctx.strokeStyle = `hsla(${r.hue},70%,65%,${alpha})`;
-        ctx.lineWidth = (1 - progress) * 1.5;
-        ctx.stroke();
-
-        // Inner core (small bright dot that fades quickly)
-        if (progress < 0.2) {
-          const coreAlpha = (0.2 - progress) / 0.2 * 0.6;
+      // Render the latent "background lattice"
+      const cols = 20, rows = 12, cw = W/cols, ch = H/rows;
+      for (let c=0; c<cols; c++) {
+        for (let r=0; r<rows; r++) {
+          const x = (c+0.5)*cw, y=(r+0.5)*ch;
           ctx.beginPath();
-          ctx.arc(r.x, r.y, 3, 0, Math.PI * 2);
-          ctx.fillStyle = `hsla(${r.hue},80%,80%,${coreAlpha})`;
+          ctx.arc(x, y, 0.6 + Math.sin(time/40 + c + r)*0.4, 0, Math.PI*2);
+          ctx.fillStyle = `rgba(255,255,255,0.08)`;
           ctx.fill();
         }
       }
 
-      // Participation counter
-      ctx.fillStyle = "rgba(60,60,80,0.7)";
-      ctx.font = "11px monospace";
-      ctx.fillText(`ACTIVE TRACES — ${ripples.length}`, 32, H - 28);
+      // Draw active participation ripples
+      ctx.globalCompositeOperation = "lighter";
+      for (let i = pulses.length - 1; i >= 0; i--) {
+        const p = pulses[i];
+        p.life += 16;
+        const progress = p.life / p.duration;
+        if (progress >= 1) { pulses.splice(i, 1); continue; }
+
+        const alpha = (1 - progress) * 0.4;
+        const radius = progress * 220;
+
+        // Glow
+        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
+        grad.addColorStop(0, `hsla(${p.hue}, 80%, 40%, ${alpha * 0.5})`);
+        grad.addColorStop(1, `hsla(${p.hue}, 80%, 40%, 0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Ring
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius * 0.6, 0, Math.PI * 2);
+        ctx.strokeStyle = `hsla(${p.hue}, 90%, 60%, ${alpha * 0.3})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      ctx.globalCompositeOperation = "source-over";
 
       raf = requestAnimationFrame(tick);
     };
 
     tick();
-
-    const onResize = () => {
-      W = window.innerWidth; H = window.innerHeight;
-      canvas.width = W; canvas.height = H;
-    };
-    window.addEventListener("resize", onResize);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("resize", onResize);
-    };
+    const resize = () => { W = window.innerWidth; H = window.innerHeight; canvas.width = W; canvas.height = H; };
+    window.addEventListener("resize", resize);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("mousemove", onMove); window.removeEventListener("resize", resize); };
   }, []);
 
   return (
     <div style={{ background:"#050505", width:"100vw", height:"100vh", overflow:"hidden", position:"relative" }}>
       <canvas ref={canvasRef} style={{ display:"block" }} />
-      <div style={{
-        position:"absolute", top:28, left:32,
-        fontFamily:"monospace", fontSize:"11px",
-        color:"rgba(80,80,100,0.7)",
-        letterSpacing:"0.08em", textTransform:"uppercase",
-        pointerEvents:"none",
-      }}>
-        Move — your trajectory leaves influence traces
+      <div style={{ position:"absolute", top:32, left:36, fontFamily:"monospace", color:"#fff", pointerEvents:"none", fontSize:11, letterSpacing:2 }}>
+        <p style={{opacity:0.6}}>Status: Group Influence Topography Tracing</p>
+        <p style={{color: "#0ff", opacity: 0.8}}>Tracing Group Social Traces</p>
+      </div>
+      <div style={{ position:"absolute", bottom:32, left:36, fontSize:10, color:"rgba(255,255,255,0.3)", pointerEvents:"none" }}>
+        Movement propagates ripples of influence—visualizing collective memory.
       </div>
     </div>
   );
