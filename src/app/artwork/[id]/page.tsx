@@ -4,41 +4,60 @@ import Link from 'next/link';
 import styles from './Detail.module.css';
 
 export async function generateStaticParams() {
-  return artworks.map((artwork) => ({
-    id: artwork.id,
-  }));
+  return artworks.map((artwork) => ({ id: artwork.id }));
 }
 
-export default async function ArtworkDetail({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = await params;
-  const artwork = artworks.find((a) => a.id === resolvedParams.id);
+export default async function ArtworkDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const artwork = artworks.find((a) => a.id === id);
+  if (!artwork) notFound();
 
-  if (!artwork) {
-    notFound();
-  }
+  const sections = artwork.detailedExplanation.split('\n\n').filter(Boolean);
 
   return (
     <div className={styles.container}>
-      <div className={styles.iframeWrapper}>
+      {/* Live artwork embedded at top */}
+      <div className={styles.artworkFrame}>
         <iframe
           src={artwork.liveUrl}
           title={artwork.theoryName}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
-        ></iframe>
+        />
       </div>
-      
+
+      {/* Text content below */}
       <main className={styles.content}>
-        <div className={styles.topRow}>
+        <nav className={styles.nav}>
           <Link href="/" className={styles.backLink}>
-            <span>←</span> Back to Archive
+            ← Archive
           </Link>
-          <div className={styles.number}>{artwork.number}</div>
-        </div>
-        
+          <span className={styles.number}>{artwork.number}</span>
+        </nav>
+
         <h1 className={styles.title}>{artwork.theoryName}</h1>
-        <div className={styles.detailedExplanation}>
-          {artwork.detailedExplanation}
+
+        <div className={styles.explanation}>
+          {sections.map((block, i) => {
+            const isHeading = block.includes(':') && block.split(':')[0].length < 40 && !block.startsWith(' ');
+            if (isHeading) {
+              const [head, ...rest] = block.split(':');
+              return (
+                <div key={i} className={styles.explanationBlock}>
+                  <p className={styles['section-heading']}>{head}</p>
+                  <p className={styles['section-body']}>{rest.join(':').trim()}</p>
+                </div>
+              );
+            }
+            return (
+              <div key={i} className={styles.explanationBlock}>
+                <p className={styles['section-body']}>{block}</p>
+              </div>
+            );
+          })}
         </div>
       </main>
     </div>

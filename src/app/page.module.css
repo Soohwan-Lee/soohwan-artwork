@@ -1,80 +1,113 @@
 .main {
   min-height: 100vh;
-  padding: 100px 60px;
-  max-width: 1200px;
+  padding: 120px 64px 120px;
+  max-width: 1280px;
   margin: 0 auto;
-  animation: fadeIn 1.2s ease-out;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+/* ── Hero ─────────────────────────────────────── */
+
+.hero {
+  margin-bottom: 120px;
 }
 
-.header {
-  margin-bottom: 100px;
-  max-width: 800px;
-}
-
-.tagline {
-  font-family: monospace;
-  font-size: 0.85rem;
-  letter-spacing: 0.1em;
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--subtext);
-  margin-bottom: 24px;
+  margin-bottom: 32px;
+  opacity: 0;
+  animation: fadeUp 0.8s ease forwards;
 }
 
 .title {
-  font-size: 4rem;
-  font-weight: 300;
-  letter-spacing: -0.04em;
-  line-height: 1.05;
-  margin-bottom: 40px;
-  color: #fff;
+  font-size: clamp(3.5rem, 8vw, 7rem);
+  font-weight: 200;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+  color: var(--foreground);
+  margin-bottom: 56px;
+  opacity: 0;
+  animation: fadeUp 0.8s 0.1s ease forwards;
 }
 
 .bio {
+  max-width: 560px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  font-size: 1.1rem;
-  color: #a3a3a3;
-  line-height: 1.7;
+  gap: 18px;
+  opacity: 0;
+  animation: fadeUp 0.8s 0.2s ease forwards;
+}
+
+.bio p {
+  font-size: 1rem;
+  color: var(--subtext-light);
+  line-height: 1.75;
   font-weight: 300;
 }
 
+.divider {
+  width: 40px;
+  height: 1px;
+  background: var(--border-hover);
+  margin: 8px 0;
+}
+
 .mission {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #222;
-  font-style: italic;
-  color: #777;
+  font-size: 0.9rem;
+  color: var(--subtext);
+  font-style: normal;
+  letter-spacing: 0.01em;
+}
+
+/* ── Grid ─────────────────────────────────────── */
+
+.gridLabel {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--subtext);
+  margin-bottom: 24px;
+  opacity: 0;
+  animation: fadeUp 0.8s 0.3s ease forwards;
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+  gap: 1px;
+  border: 1px solid var(--border);
+  opacity: 0;
+  animation: fadeUp 0.8s 0.4s ease forwards;
 }
+
+/* ── Animations ───────────────────────────────── */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Responsive ───────────────────────────────── */
 
 @media (max-width: 1024px) {
   .grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  .title {
-    font-size: 3rem;
-  }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .main {
-    padding: 60px 24px;
+    padding: 80px 24px 80px;
   }
   .grid {
     grid-template-columns: 1fr;
   }
-  .title {
-    font-size: 2.5rem;
+  .hero {
+    margin-bottom: 72px;
   }
 }

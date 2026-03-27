@@ -1,63 +1,82 @@
+/* Card fills one grid cell with a shared 1px border via the grid gap trick */
 .card {
   display: flex;
   flex-direction: column;
   background-color: var(--background);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 32px 24px;
+  padding: 40px 36px 36px;
   color: var(--foreground);
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.25s ease;
   cursor: pointer;
-  height: 100%;
+  min-height: 280px;
+  position: relative;
+  overflow: hidden;
+}
+
+.card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(circle at 60% 40%, rgba(255,255,255,0.03) 0%, transparent 70%);
+  transition: opacity 0.3s ease;
 }
 
 .card:hover {
-  background-color: var(--card-hover);
-  border-color: #444;
-  transform: translateY(-2px);
+  background-color: var(--surface);
 }
 
+.card:hover::after {
+  opacity: 1;
+}
+
+.card:hover .arrow {
+  transform: translate(3px, -3px);
+  opacity: 1;
+}
+
+/* ── Top row ─────────────────────────── */
 .topRow {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 40px;
+  margin-bottom: 64px;
 }
 
 .number {
-  font-size: 1.125rem;
-  font-weight: 300;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 400;
   color: var(--subtext);
-  font-family: monospace;
+  letter-spacing: 0.08em;
 }
 
-.avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
-  background-color: #1a1a1a;
-  border: 1px solid #333;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.arrow {
+  font-size: 1rem;
+  color: var(--subtext);
+  opacity: 0;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  line-height: 1;
 }
 
+/* ── Content ─────────────────────────── */
 .content {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   margin-top: auto;
 }
 
 .theoryName {
-  font-size: 1rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-size: 1.1rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+  line-height: 1.3;
 }
 
 .description {
-  font-size: 0.875rem;
+  font-size: 0.825rem;
   color: var(--subtext);
-  line-height: 1.5;
+  line-height: 1.6;
+  font-weight: 300;
 }

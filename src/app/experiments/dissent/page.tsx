@@ -1,132 +1,197 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
+
+// Dissenting Minority — Social Network Simulation
+// A graph of nodes where the majority (grey) exert constant pressure
+// on minority nodes (red) to "absorb" them into consensus.
+// Click/hold to trigger AI mediation: minority nodes resist and 
+// their influence slowly diffuses outward, converting nearby nodes.
+
+interface Node {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  opinion: number;   // 0 = full majority, 1 = full minority
+  isCore: boolean;   // one of the original minority seeds
+  radius: number;
+}
+
+interface Edge {
+  a: number;
+  b: number;
+}
+
+const N_NODES = 80;
+const N_MINORITY = 6;
+const CONNECT_R = 130;
+
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+
+function opinionColor(o: number) {
+  // 0 → dim grey-blue, 1 → vivid red
+  const r = Math.round(lerp(50, 220, o));
+  const g = Math.round(lerp(50, 40, o));
+  const b = Math.round(lerp(70, 40, o));
+  return `rgb(${r},${g},${b})`;
+}
 
 export default function DissentExperiment() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [intervention, setIntervention] = useState(false);
+  const [mediation, setMediation] = useState(false);
+  const mediationRef = useRef(false);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    mediationRef.current = mediation;
+  }, [mediation]);
 
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
+  useEffect(() => {
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d")!;
+    let W = window.innerWidth, H = window.innerHeight;
+    canvas.width = W; canvas.height = H;
 
-    // Nodes
-    const nodes: { x: number; y: number; isMinority: boolean; size: number; baseColor: string; vx: number; vy: number }[] = [];
-    const totalNodes = 100;
-    
-    for (let i = 0; i < totalNodes; i++) {
-      const isMinority = i < 5; // 5 minority nodes
-      nodes.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        isMinority,
-        size: isMinority ? 6 : Math.random() * 2 + 2,
-        baseColor: isMinority ? '#ff4040' : '#444455',
-        vx: (Math.random() - 0.5),
-        vy: (Math.random() - 0.5)
-      });
+    // Build nodes
+    const nodes: Node[] = Array.from({ length: N_NODES }, (_, i) => ({
+      id: i,
+      x: W * 0.1 + Math.random() * W * 0.8,
+      y: H * 0.1 + Math.random() * H * 0.8,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      opinion: i < N_MINORITY ? 1 : 0,
+      isCore: i < N_MINORITY,
+      radius: i < N_MINORITY ? 7 : 4,
+    }));
+
+    // Build edges (proximity based)
+    const edges: Edge[] = [];
+    for (let i = 0; i < N_NODES; i++) {
+      for (let j = i + 1; j < N_NODES; j++) {
+        const dx = nodes[i].x - nodes[j].x;
+        const dy = nodes[i].y - nodes[j].y;
+        if (Math.sqrt(dx*dx + dy*dy) < CONNECT_R) {
+          edges.push({ a: i, b: j });
+        }
+      }
     }
 
-    let animationId: number;
+    let raf: number;
 
-    const animate = () => {
-      ctx.fillStyle = 'rgba(5, 5, 5, 0.4)';
-      ctx.fillRect(0, 0, width, height);
+    const tick = () => {
+      ctx.fillStyle = "rgba(5,5,5,0.35)";
+      ctx.fillRect(0, 0, W, H);
 
-      // Draw connections
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-           const dx = nodes[i].x - nodes[j].x;
-           const dy = nodes[i].y - nodes[j].y;
-           const dist = Math.sqrt(dx*dx + dy*dy);
-           
-           if (dist < 100) {
-              ctx.beginPath();
-              ctx.moveTo(nodes[i].x, nodes[i].y);
-              ctx.lineTo(nodes[j].x, nodes[j].y);
-              
-              if (intervention && (nodes[i].isMinority || nodes[j].isMinority)) {
-                  ctx.strokeStyle = `rgba(255, 64, 64, ${0.5 - dist/200})`;
-              } else {
-                  ctx.strokeStyle = `rgba(100, 100, 120, ${0.1 - dist/1000})`;
-              }
-              ctx.stroke();
-           }
+      const isMediating = mediationRef.current;
+
+      // Update opinions
+      for (const node of nodes) {
+        if (node.isCore && isMediating) {
+          // Core minority stays firm + radiates outward
+          node.opinion = Math.min(1, node.opinion + 0.02);
+          continue;
+        }
+        // Social pressure: average of neighbours
+        let sum = 0, count = 0;
+        for (const e of edges) {
+          let other = -1;
+          if (e.a === node.id) other = e.b;
+          if (e.b === node.id) other = e.a;
+          if (other !== -1) { sum += nodes[other].opinion; count++; }
+        }
+        if (count > 0) {
+          const avg = sum / count;
+          const pullMajority = (0 - node.opinion) * 0.004;      // pull to 0
+          const pullAvg      = (avg - node.opinion) * 0.008;
+          const pullMinority = isMediating ? (node.opinion < 0.5 ? 0 : 0.003) : 0;
+          node.opinion = Math.max(0, Math.min(1,
+            node.opinion + pullMajority + pullAvg + pullMinority
+          ));
         }
       }
 
-      for (let i = 0; i < nodes.length; i++) {
-        const p = nodes[i];
-        
-        p.x += p.vx;
-        p.y += p.vy;
+      // Move nodes (gentle brownian drift)
+      for (const n of nodes) {
+        n.vx += (Math.random() - 0.5) * 0.05;
+        n.vy += (Math.random() - 0.5) * 0.05;
+        n.vx *= 0.96; n.vy *= 0.96;
+        n.x += n.vx; n.y += n.vy;
+        if (n.x < 30) n.x = 30;
+        if (n.x > W-30) n.x = W-30;
+        if (n.y < 30) n.y = 30;
+        if (n.y > H-30) n.y = H-30;
+      }
 
-        if (p.x < 0 || p.x > width) p.vx *= -1;
-        if (p.y < 0 || p.y > height) p.vy *= -1;
-
-        // Draw protective halo if intervention is active and it's a minority
-        if (intervention && p.isMinority) {
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 64, 64, 0.1)';
-            ctx.fill();
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = 'rgba(255, 64, 64, 0.5)';
-            ctx.stroke();
-        }
-
+      // Draw edges
+      for (const e of edges) {
+        const a = nodes[e.a], b = nodes[e.b];
+        const avgOp = (a.opinion + b.opinion) / 2;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        
-        // If no intervention, majority occasionally flashes minority color to absorb it visually
-        if (!intervention && p.isMinority) {
-            ctx.fillStyle = (Math.random() > 0.95) ? '#888' : p.baseColor;
-        } else {
-            ctx.fillStyle = p.baseColor;
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = `rgba(${Math.round(lerp(30,100,avgOp))},${Math.round(lerp(30,30,avgOp))},${Math.round(lerp(45,30,avgOp))},0.35)`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+
+      // Draw nodes
+      for (const n of nodes) {
+        // Halo for mediated minority
+        if (isMediating && n.opinion > 0.5) {
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.radius + 8 + Math.sin(Date.now()/300)*3, 0, Math.PI*2);
+          ctx.fillStyle = `rgba(220,40,40,${(n.opinion - 0.5) * 0.15})`;
+          ctx.fill();
         }
-        
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.radius, 0, Math.PI*2);
+        ctx.fillStyle = opinionColor(n.opinion);
         ctx.fill();
       }
 
-      animationId = requestAnimationFrame(animate);
+      // Status label
+      const minorityStrength = nodes.filter(n => n.opinion > 0.5).length;
+      ctx.fillStyle = isMediating ? "rgba(220,40,40,0.8)" : "rgba(80,80,100,0.8)";
+      ctx.font = "11px monospace";
+      ctx.fillText(
+        isMediating
+          ? `AI MEDIATION ACTIVE — ${minorityStrength} nodes hold minority view`
+          : `ASSIMILATION IN PROGRESS — ${minorityStrength} nodes holding`,
+        32, H - 28
+      );
+
+      raf = requestAnimationFrame(tick);
     };
 
-    animate();
+    tick();
 
-    const handleResize = () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
+    const onResize = () => {
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = W; canvas.height = H;
     };
-    
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animationId);
-    };
-  }, [intervention]);
+    window.addEventListener("resize", onResize);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", onResize); };
+  }, []);
 
   return (
-    <div 
-        style={{ margin: 0, padding: 0, overflow: 'hidden', background: '#050505', height: '100vh', width: '100vw', cursor: 'pointer' }}
-        onMouseDown={() => setIntervention(true)}
-        onMouseUp={() => setIntervention(false)}
-        onTouchStart={() => setIntervention(true)}
-        onTouchEnd={() => setIntervention(false)}
+    <div
+      style={{ background:"#050505", width:"100vw", height:"100vh", overflow:"hidden", position:"relative", cursor:"pointer" }}
+      onPointerDown={() => setMediation(true)}
+      onPointerUp={() => setMediation(false)}
+      onPointerLeave={() => setMediation(false)}
     >
-      <canvas ref={canvasRef} style={{ display: 'block' }} />
-      <div style={{ position: 'absolute', bottom: 20, left: 20, color: '#aaa', fontFamily: 'monospace', fontSize: 12, pointerEvents: 'none' }}>
-        Press and hold to trigger AI Minority Intervention.<br />
-        Status: {intervention ? "MEDIATION ACTIVE" : "UNPROTECTED ASSIMILATION"}
+      <canvas ref={canvasRef} style={{ display:"block" }} />
+      <div style={{
+        position:"absolute", top:28, left:32,
+        fontFamily:"monospace", fontSize:"11px",
+        color: mediation ? "rgba(220,40,40,0.7)" : "rgba(80,80,80,0.7)",
+        letterSpacing:"0.08em", textTransform:"uppercase",
+        pointerEvents:"none", transition:"color 0.3s",
+      }}>
+        {mediation ? "Mediation Active — hold to sustain" : "Press & hold to activate AI mediation"}
       </div>
     </div>
   );

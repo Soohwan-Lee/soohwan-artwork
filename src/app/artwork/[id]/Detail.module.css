@@ -4,43 +4,48 @@
   min-height: 100vh;
 }
 
-.iframeWrapper {
+/* ── Artwork Frame ──────────────────────── */
+.artworkFrame {
   width: 100%;
-  height: 65vh;
-  background-color: #050505;
+  height: 70vh;
+  background-color: var(--background);
   border-bottom: 1px solid var(--border);
   position: relative;
+  overflow: hidden;
 }
 
-.iframeWrapper iframe {
+.artworkFrame iframe {
   width: 100%;
   height: 100%;
   border: none;
+  display: block;
 }
 
+/* ── Content below artwork ──────────────── */
 .content {
-  max-width: 900px;
+  max-width: 760px;
   margin: 0 auto;
-  padding: 80px 40px;
+  padding: 80px 40px 120px;
   width: 100%;
 }
 
-.topRow {
+.nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 40px;
+  margin-bottom: 80px;
 }
 
 .backLink {
-  color: var(--subtext);
-  font-size: 0.875rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  transition: color 0.2s;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--subtext);
+  transition: color 0.2s;
 }
 
 .backLink:hover {
@@ -48,30 +53,45 @@
 }
 
 .number {
-  font-family: monospace;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
   color: var(--subtext);
-  font-size: 1.25rem;
 }
 
+/* ── Title & Explanation ────────────────── */
 .title {
-  font-size: 3rem;
-  font-weight: 500;
-  letter-spacing: -0.03em;
-  margin-bottom: 24px;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 200;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  margin-bottom: 48px;
+  color: var(--foreground);
 }
 
-.detailedExplanation {
-  font-size: 1.125rem;
-  line-height: 1.8;
-  color: #cccccc;
-  white-space: pre-wrap;
-}
-
-.missing {
+.explanation {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  font-size: 2rem;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.section-heading {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   color: var(--subtext);
+  margin-bottom: 12px;
+}
+
+.section-body {
+  font-size: 1rem;
+  line-height: 1.85;
+  color: rgba(240, 240, 240, 0.7);
+  font-weight: 300;
+}
+
+.explanationBlock {
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
 }

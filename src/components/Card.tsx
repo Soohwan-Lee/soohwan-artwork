@@ -6,10 +6,8 @@ export default function Card({ artwork }: { artwork: Artwork }) {
   return (
     <Link href={`/artwork/${artwork.id}`} className={styles.card}>
       <div className={styles.topRow}>
-        <div className={styles.number}>{artwork.number}</div>
-        <div className={styles.avatar}>
-           <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#555' }} />
-        </div>
+        <span className={styles.number}>{artwork.number}</span>
+        <span className={styles.arrow}>↗</span>
       </div>
       <div className={styles.content}>
         <div className={styles.theoryName}>{artwork.theoryName}</div>
